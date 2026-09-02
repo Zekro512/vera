@@ -37,6 +37,38 @@ router.post("/", async (req, res) => {
 
     const total = validatedItems.reduce((sum, item) => sum + item.subtotal, 0);
 
+    // Guard against the double-POST that a fast double-click produces. If an
+    // identical cart is already awaiting payment, hand back that order instead
+    // of creating a second document for the same customer action.
+    const RECENT_WINDOW_MS = 2 * 60 * 1000;
+
+    const fingerprint = (items) =>
+      JSON.stringify(
+        items
+          .map((item) => [item.productId ?? item.id, item.quantity])
+          .sort((a, b) => a[0] - b[0])
+      );
+
+    const recentPending = await Order.find({
+      status: "payment_pending",
+      total,
+      createdAt: { $gte: new Date(Date.now() - RECENT_WINDOW_MS) },
+    });
+
+    const duplicate = recentPending.find(
+      (existing) => fingerprint(existing.items) === fingerprint(validatedItems)
+    );
+
+    if (duplicate) {
+      console.log("Duplicate confirm ignored, reusing order:", duplicate._id);
+
+      return res.status(200).json({
+        message: "Order already awaiting payment",
+        order: duplicate,
+        duplicate: true,
+      });
+    }
+
     const order = await Order.create({
       items: validatedItems.map((item) => ({
         productId: item.id,

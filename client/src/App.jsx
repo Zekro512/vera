@@ -4,6 +4,10 @@ function App() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
+  // Which proposals are mid-confirm or already confirmed, so one customer
+  // action cannot become two orders.
+  const [confirmingIndex, setConfirmingIndex] = useState(null);
+  const [confirmedIndexes, setConfirmedIndexes] = useState([]);
   // Tell the server a payment was cancelled or failed so the order does not
   // sit at payment_pending forever. Never used to mark anything paid.
   const reportAbandonedPayment = async (orderId, outcome, reason) => {
@@ -20,7 +24,15 @@ function App() {
     }
   };
 
-  const handleConfirmOrder = async (orderData) => {
+  const handleConfirmOrder = async (orderData, messageIndex) => {
+    // First line of defence against a double-click: refuse to start a second
+    // confirm for a proposal that is already in flight or already confirmed.
+    if (confirmingIndex !== null || confirmedIndexes.includes(messageIndex)) {
+      return;
+    }
+
+    setConfirmingIndex(messageIndex);
+
     try {
       // Step 1: save the customer-confirmed order. The server re-validates the
       // items and recomputes the total, so this response is the trusted one.
@@ -42,6 +54,10 @@ function App() {
       }
 
       const savedOrder = orderResult.order;
+
+      // The order now exists server-side, so this proposal must not be
+      // confirmable again even if the payment is later cancelled.
+      setConfirmedIndexes((prev) => [...prev, messageIndex]);
 
       // Step 2: ask the backend to create a Razorpay order from the stored total.
       const paymentResponse = await fetch("http://localhost:5000/api/payments", {
@@ -138,6 +154,8 @@ function App() {
       console.error("Order confirmation error:", error);
 
       alert("Something went wrong while confirming the order.");
+    } finally {
+      setConfirmingIndex(null);
     }
   };
 
@@ -213,29 +231,6 @@ function App() {
                   <p>Please provide more specific product details.</p>
                 )}
 
-                {item.data.validatedItems.length > 0 &&
-                 item.data.unavailableItems.length === 0 && (
-                  <div>
-                    <h3>Available Items</h3>
-
-                    {item.data.validatedItems.map((product) => (
-                      <div key={product.id}>
-                        <p>
-                          {product.name} × {product.quantity} — ₹
-                          {product.subtotal}
-                        </p>
-                        
-                      </div>
-                      
-                    ))}
-
-                    <h3>Total: ₹{item.data.total}</h3>
-                    <button onClick={() => handleConfirmOrder(item.data)}>
-                      Confirm Order
-                       </button>
-                  </div>
-                )}
-
                 {item.data.unavailableItems.length > 0 && (
                   <div>
                     <h3>Unavailable Items</h3>
@@ -245,9 +240,49 @@ function App() {
                         {product.name} — {product.reason}
                       </p>
                     ))}
-                    
                   </div>
                 )}
+
+                {item.data.validatedItems.length > 0 && (
+                  <div>
+                    <h3>Available Items</h3>
+
+                    {item.data.validatedItems.map((product) => (
+                      <div key={product.id}>
+                        <p>
+                          {product.name} × {product.quantity} — ₹
+                          {product.subtotal}
+                        </p>
+                      </div>
+                    ))}
+
+                    <h3>Total: ₹{item.data.total}</h3>
+
+                    <button
+                      onClick={() => handleConfirmOrder(item.data, index)}
+                      disabled={
+                        confirmingIndex !== null ||
+                        confirmedIndexes.includes(index)
+                      }
+                    >
+                      {confirmedIndexes.includes(index)
+                        ? "Order confirmed"
+                        : confirmingIndex === index
+                        ? "Confirming..."
+                        : item.data.unavailableItems.length > 0
+                        ? "Confirm available items only"
+                        : "Confirm Order"}
+                    </button>
+                  </div>
+                )}
+
+                {item.data.validatedItems.length === 0 &&
+                  item.data.unavailableItems.length > 0 && (
+                    <p>
+                      Nothing in this request can be ordered. Try different
+                      items or quantities.
+                    </p>
+                  )}
               </div>
             )}
 
