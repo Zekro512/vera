@@ -4,6 +4,22 @@ function App() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
+  // Tell the server a payment was cancelled or failed so the order does not
+  // sit at payment_pending forever. Never used to mark anything paid.
+  const reportAbandonedPayment = async (orderId, outcome, reason) => {
+    try {
+      await fetch("http://localhost:5000/api/payments/abandon", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ orderId, outcome, reason }),
+      });
+    } catch (error) {
+      console.error("Could not report abandoned payment:", error);
+    }
+  };
+
   const handleConfirmOrder = async (orderData) => {
     try {
       // Step 1: save the customer-confirmed order. The server re-validates the
@@ -58,18 +74,49 @@ function App() {
         order_id: paymentResult.razorpayOrder.id,
         name: "AI Commerce Agent",
         description: `Order ${savedOrder._id}`,
-        handler: (response) => {
-          // The modal reports success, but the server has not verified the
-          // signature yet, so the order stays payment_pending on purpose.
+        handler: async (response) => {
+          // Checkout says it succeeded. That is a claim, not proof — the order
+          // only becomes "paid" if the server verifies the signature.
           console.log("Razorpay payment response:", response);
 
-          alert(
-            "Payment completed in Razorpay, but the server has not verified it yet. Order is still payment_pending."
-          );
+          try {
+            const verifyResponse = await fetch(
+              "http://localhost:5000/api/payments/verify",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                }),
+              }
+            );
+
+            const verifyResult = await verifyResponse.json();
+
+            console.log("Verification response:", verifyResult);
+
+            alert(
+              verifyResponse.ok
+                ? `Payment verified. Order status: ${verifyResult.status}.`
+                : `Payment could not be verified: ${verifyResult.message}`
+            );
+          } catch (error) {
+            console.error("Verification error:", error);
+
+            alert(
+              "Payment went through but verification could not be reached. The order stays payment_pending."
+            );
+          }
         },
         modal: {
           ondismiss: () => {
-            alert("Payment cancelled. The order is still payment_pending.");
+            reportAbandonedPayment(savedOrder._id, "cancelled", "Customer closed Checkout");
+
+            alert("Payment cancelled. The order has been marked cancelled.");
           },
         },
       });
@@ -77,7 +124,13 @@ function App() {
       checkout.on("payment.failed", (response) => {
         console.error("Razorpay payment failed:", response.error);
 
-        alert(`Payment failed: ${response.error.description}`);
+        reportAbandonedPayment(
+          savedOrder._id,
+          "failed",
+          response.error?.description
+        );
+
+        alert(`Payment failed: ${response.error?.description}`);
       });
 
       checkout.open();

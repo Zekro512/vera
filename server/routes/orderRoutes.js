@@ -1,6 +1,7 @@
 const express = require("express");
 const Order = require("../models/Order");
 const { validateOrder } = require("../services/catalogService");
+const { recordEvent } = require("../services/auditService");
 
 const router = express.Router();
 
@@ -26,6 +27,8 @@ router.post("/", async (req, res) => {
     );
 
     if (unavailableItems.length > 0) {
+      await recordEvent("STOCK_UNAVAILABLE", null, { unavailableItems });
+
       return res.status(400).json({
         message: "Some items are no longer available",
         unavailableItems,
@@ -44,6 +47,11 @@ router.post("/", async (req, res) => {
       })),
       total,
       status: "payment_pending",
+    });
+
+    await recordEvent("CUSTOMER_CONFIRMED", order._id, {
+      items: order.items,
+      total: order.total,
     });
 
     res.status(201).json({

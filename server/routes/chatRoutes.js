@@ -2,6 +2,7 @@ const express = require("express");
 
 const { extractOrder } = require("../services/llmService");
 const { validateOrder } = require("../services/catalogService");
+const { recordEvent } = require("../services/auditService");
 
 const router = express.Router();
 
@@ -15,6 +16,8 @@ router.post("/", async (req, res) => {
         message: "Customer message is required",
       });
     }
+
+    await recordEvent("ORDER_REQUEST_RECEIVED", null, { message });
 
     // Step 1: Gemini extracts the order
     const llmResponse = await extractOrder(message);
@@ -32,6 +35,14 @@ router.post("/", async (req, res) => {
       (sum, item) => sum + item.subtotal,
       0
     );
+
+    if (validatedItems.length > 0) {
+      await recordEvent("ORDER_PROPOSED", null, { validatedItems, total });
+    }
+
+    if (unavailableItems.length > 0) {
+      await recordEvent("STOCK_UNAVAILABLE", null, { unavailableItems });
+    }
 
     // Step 5: Return the order proposal
     res.json({
