@@ -190,13 +190,24 @@ function App() {
 
       const data = await response.json();
 
-      // Add structured AI response
+      // An error response has no validatedItems/unavailableItems. Rendering it
+      // as a proposal would throw during render and unmount the whole app, so
+      // show it as text instead.
+      const isProposal =
+        response.ok &&
+        Array.isArray(data.validatedItems) &&
+        Array.isArray(data.unavailableItems);
+
       setMessages((prev) => [
         ...prev,
-        {
-          sender: "ai",
-          data: data,
-        },
+        isProposal
+          ? { sender: "ai", data }
+          : {
+              sender: "ai",
+              text:
+                data.message ||
+                "Sorry, I could not read that order. Please try again.",
+            },
       ]);
       setLoading(false);
     } catch (error) {
@@ -231,7 +242,7 @@ function App() {
                   <p>Please provide more specific product details.</p>
                 )}
 
-                {item.data.unavailableItems.length > 0 && (
+                {(item.data.unavailableItems?.length ?? 0) > 0 && (
                   <div>
                     <h3>Unavailable Items</h3>
 
@@ -243,7 +254,7 @@ function App() {
                   </div>
                 )}
 
-                {item.data.validatedItems.length > 0 && (
+                {(item.data.validatedItems?.length ?? 0) > 0 && (
                   <div>
                     <h3>Available Items</h3>
 
@@ -276,8 +287,8 @@ function App() {
                   </div>
                 )}
 
-                {item.data.validatedItems.length === 0 &&
-                  item.data.unavailableItems.length > 0 && (
+                {(item.data.validatedItems?.length ?? 0) === 0 &&
+                  (item.data.unavailableItems?.length ?? 0) > 0 && (
                     <p>
                       Nothing in this request can be ordered. Try different
                       items or quantities.
