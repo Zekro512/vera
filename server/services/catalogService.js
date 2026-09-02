@@ -35,8 +35,8 @@ function validateOrder(items) {
 
     if (item.quantity > product.stock) {
       unavailableItems.push({
-        name: item.name,
-        reason: "Insufficient stock",
+        name: product.name,
+        reason: product.stock === 0 ? "Out of stock" : "Insufficient stock",
       });
 
       continue;

@@ -1,4 +1,6 @@
-const { extractOrder } = require("./services/llmService");
+// Dev-only scratch script. Not part of the running application.
+// Run from the server directory: node scripts/dev-only/llm-test.js
+const { extractOrder } = require("../../services/llmService");
 
 async function testLLM() {
   try {

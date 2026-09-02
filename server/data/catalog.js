@@ -59,6 +59,12 @@ const catalog = [
     price: 55,
     stock: 30,
   },
+  {
+    id: 11,
+    name: "Digital Thermometer",
+    price: 250,
+    stock: 0,
+  },
 ];
 
 module.exports = catalog;

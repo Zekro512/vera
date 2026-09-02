@@ -1,6 +1,7 @@
 const chatRoutes = require("./routes/chatRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
+const auditRoutes = require("./routes/auditRoutes");
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -19,6 +20,7 @@ app.use(express.json());
 app.use("/api/chat", chatRoutes); //these two change the 1 line and this will give  POST http://localhost:5000/api/chat
 app.use("/api/orders", orderRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/audit", auditRoutes);
 
 // Test route
 app.get("/", (req, res) => {
