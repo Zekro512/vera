@@ -5,26 +5,88 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
   const handleConfirmOrder = async (orderData) => {
-  try {
-    const response = await fetch("http://localhost:5000/api/orders", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(orderData),
-    });
+    try {
+      // Step 1: save the customer-confirmed order. The server re-validates the
+      // items and recomputes the total, so this response is the trusted one.
+      const orderResponse = await fetch("http://localhost:5000/api/orders", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(orderData),
+      });
 
-    const data = await response.json();
+      const orderResult = await orderResponse.json();
 
-    console.log("Order response:", data);
+      console.log("Order response:", orderResult);
 
-    alert(data.message);
-  } catch (error) {
-    console.error("Order confirmation error:", error);
+      if (!orderResponse.ok) {
+        alert(orderResult.message || "Could not save the order.");
+        return;
+      }
 
-    alert("Something went wrong while confirming the order.");
-  }
-};
+      const savedOrder = orderResult.order;
+
+      // Step 2: ask the backend to create a Razorpay order from the stored total.
+      const paymentResponse = await fetch("http://localhost:5000/api/payments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ orderId: savedOrder._id }),
+      });
+
+      const paymentResult = await paymentResponse.json();
+
+      console.log("Payment response:", paymentResult);
+
+      if (!paymentResponse.ok) {
+        alert(paymentResult.message || "Could not start the payment.");
+        return;
+      }
+
+      if (!window.Razorpay) {
+        alert("Razorpay Checkout did not load. Check your internet connection.");
+        return;
+      }
+
+      // Step 3: open Razorpay Checkout in Test Mode.
+      const checkout = new window.Razorpay({
+        key: paymentResult.razorpayKeyId,
+        amount: paymentResult.razorpayOrder.amount,
+        currency: paymentResult.razorpayOrder.currency,
+        order_id: paymentResult.razorpayOrder.id,
+        name: "AI Commerce Agent",
+        description: `Order ${savedOrder._id}`,
+        handler: (response) => {
+          // The modal reports success, but the server has not verified the
+          // signature yet, so the order stays payment_pending on purpose.
+          console.log("Razorpay payment response:", response);
+
+          alert(
+            "Payment completed in Razorpay, but the server has not verified it yet. Order is still payment_pending."
+          );
+        },
+        modal: {
+          ondismiss: () => {
+            alert("Payment cancelled. The order is still payment_pending.");
+          },
+        },
+      });
+
+      checkout.on("payment.failed", (response) => {
+        console.error("Razorpay payment failed:", response.error);
+
+        alert(`Payment failed: ${response.error.description}`);
+      });
+
+      checkout.open();
+    } catch (error) {
+      console.error("Order confirmation error:", error);
+
+      alert("Something went wrong while confirming the order.");
+    }
+  };
 
   const handleSend = async () => {
     if (!message.trim()) return;

@@ -38,6 +38,8 @@ router.post("/", async (req, res) => {
     res.status(201).json({
       message: "Razorpay order created successfully",
       razorpayOrder,
+      // Public key ID — safe in the browser. The secret stays server-side.
+      razorpayKeyId: process.env.RAZORPAY_KEY_ID,
     });
   } catch (error) {
     console.error("Payment error:", error);
