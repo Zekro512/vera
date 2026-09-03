@@ -1,9 +1,16 @@
-# AI Commerce Agent
+# Vera
 
-A conversational ordering agent for a small OTC pharmacy, built for the Razorpay
-Buildathon. A customer describes what they need in plain language, an LLM works
-out which products they mean, and the server prices, validates, and takes payment
-for the order.
+**Vera proposes the order. The server verifies it. Nothing reaches `paid`
+without a signature the server checked itself.**
+
+A conversational ordering agent built for the Razorpay Buildathon, Track 01 —
+AI Growth & Agentic Commerce. A customer describes what they need in plain
+language, an LLM works out which products they mean, and the server prices,
+bounds, validates and settles the order.
+
+The demo catalog is a small over-the-counter pharmacy. Nothing in the system is
+specific to medicine — the catalog is ten rows that could equally be groceries
+or stationery. It carries no prescription handling and makes no clinical claims.
 
 The interesting part is not that an AI can read an order. It is that the AI is
 never trusted with anything that costs money.

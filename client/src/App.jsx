@@ -141,7 +141,7 @@ function App() {
         amount: paymentResult.razorpayOrder.amount,
         currency: paymentResult.razorpayOrder.currency,
         order_id: paymentResult.razorpayOrder.id,
-        name: "AI Commerce Agent",
+        name: "Vera",
         description: `Order ${savedOrder._id}`,
         handler: async (response) => {
           // Checkout says it succeeded. That is a claim, not proof — the order
@@ -297,8 +297,8 @@ function App() {
     <div className="app">
       <div className={`splash ${booting ? "" : "splash-out"}`}>
         <div className="splash-inner">
-          <div className="splash-mark">AC</div>
-          <div className="splash-title">AI Commerce Agent</div>
+          <div className="splash-mark">V</div>
+          <div className="splash-title">Vera</div>
           <div className="splash-sub">Bounded · Gated · Auditable</div>
           <div className="splash-bar">
             <span />
@@ -307,10 +307,10 @@ function App() {
       </div>
 
       <header className="app-header">
-        <div className="brand-mark">AC</div>
+        <div className="brand-mark">V</div>
 
         <div className="brand-text">
-          <h1>AI Commerce Agent</h1>
+          <h1>Vera</h1>
           <p>Order in plain language. Every price checked by the server.</p>
         </div>
 

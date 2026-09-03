@@ -1,4 +1,4 @@
-# What was built, what was simplified, what was cut
+# Vera — what was built, what was simplified, what was cut
 
 An honest account of the scope, written so it can be spoken to directly if asked.
 

@@ -24,7 +24,7 @@ app.use("/api/audit", auditRoutes);
 
 // Test route
 app.get("/", (req, res) => {
-  res.send("AI Commerce Agent Backend is running!");
+  res.send("Vera backend is running");
 });
 
 // MongoDB connection
