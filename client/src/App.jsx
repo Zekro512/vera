@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import "./App.css";
 
+// Where the backend lives. Set VITE_API_URL when the frontend is deployed
+// separately from the API; the fallback keeps local development zero-config.
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+
 // Presentation only — the server is the authority on what an order's status is.
 const statusLabel = (status) =>
   ({
@@ -50,7 +54,7 @@ function App() {
   // sit at payment_pending forever. Never used to mark anything paid.
   const reportAbandonedPayment = async (orderId, outcome, reason) => {
     try {
-      await fetch("http://localhost:5000/api/payments/abandon", {
+      await fetch(`${API_BASE}/api/payments/abandon`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -74,7 +78,7 @@ function App() {
     try {
       // Step 1: save the customer-confirmed order. The server re-validates the
       // items and recomputes the total, so this response is the trusted one.
-      const orderResponse = await fetch("http://localhost:5000/api/orders", {
+      const orderResponse = await fetch(`${API_BASE}/api/orders`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -107,7 +111,7 @@ function App() {
       setConfirmedIndexes((prev) => [...prev, messageIndex]);
 
       // Step 2: ask the backend to create a Razorpay order from the stored total.
-      const paymentResponse = await fetch("http://localhost:5000/api/payments", {
+      const paymentResponse = await fetch(`${API_BASE}/api/payments`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -150,7 +154,7 @@ function App() {
 
           try {
             const verifyResponse = await fetch(
-              "http://localhost:5000/api/payments/verify",
+              `${API_BASE}/api/payments/verify`,
               {
                 method: "POST",
                 headers: {
@@ -247,7 +251,7 @@ function App() {
 
     try {
       // Send message to backend
-      const response = await fetch("http://localhost:5000/api/chat", {
+      const response = await fetch(`${API_BASE}/api/chat`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -74,8 +74,21 @@ router.post("/", async (req, res) => {
   } catch (error) {
     console.error("Chat error:", error.message);
 
-    res.status(500).json({
-      message: "Something went wrong while processing your request",
+    // Say which kind of failure it was. A model outage is not the customer's
+    // fault and is worth retrying; anything else is not.
+    const text = `${error.message}`;
+
+    const isOverloaded =
+      text.includes("timed out") ||
+      text.includes("503") ||
+      text.includes("UNAVAILABLE") ||
+      text.includes("429") ||
+      text.includes("RESOURCE_EXHAUSTED");
+
+    res.status(isOverloaded ? 503 : 500).json({
+      message: isOverloaded
+        ? "The ordering model is busy right now. Please send that again in a moment."
+        : "Something went wrong while processing your request",
     });
   }
 });
