@@ -17,6 +17,105 @@ never trusted with anything that costs money.
 
 ---
 
+## Walkthrough
+
+The whole flow, in the order a customer meets it. Each step notes the guarantee
+it demonstrates.
+
+### 1. The opening screen
+
+The agent has proposed nothing and knows nothing. Suggested phrasings let a
+reviewer start without typing.
+
+![Vera opening screen with suggested prompts](docs/screenshots/01-empty-state.png)
+
+### 2. The order proposal
+
+The customer wrote plain English. The model resolved product names and
+quantities only — **every price on this card came from the server catalog**, not
+from the model and not from the browser. Nothing has been charged yet.
+
+![An itemised order proposal totalling 85 rupees](docs/screenshots/02-proposal.png)
+
+### 3. Razorpay Checkout
+
+Opened only after the customer confirmed. The amount shown is the one Razorpay
+returned for a server-created order, so a tampered browser cannot change what is
+charged.
+
+![Razorpay Test Mode checkout showing the Vera brand](docs/screenshots/03-checkout.png)
+
+### 4. Paid, and verified
+
+Checkout reported success — but the order became `paid` only after the server
+recomputed the HMAC signature and matched it. The order and payment IDs are
+shown so this can be cross-referenced against the audit trail or the Razorpay
+dashboard.
+
+![An order marked paid with signature verified by the server](docs/screenshots/04-paid.png)
+
+### 5. The Razorpay receipt
+
+The same payment from Razorpay's side, in Test Mode. The amount matches the
+server's total exactly.
+
+![Razorpay payment successful receipt for 165 rupees](docs/screenshots/05-receipt.png)
+
+### 6. The agent refuses to exceed its ceiling
+
+This proposal is perfectly valid — the items exist and are in stock. It is
+refused because the total is above the operator-set spending limit. **The agent
+cannot raise that limit**, the confirm button is genuinely disabled, and the
+refusal is recorded as `ORDER_LIMIT_EXCEEDED`.
+
+![An order blocked for exceeding the spending limit](docs/screenshots/06-spending-limit.png)
+
+### 7. A refusal the customer can act on
+
+Out of stock is reported as its own kind of refusal, distinct from a bound
+breach, and recorded as `STOCK_UNAVAILABLE`.
+
+![An out of stock item refused by the catalog](docs/screenshots/07-out-of-stock.png)
+
+### 8. A payment the customer walked away from
+
+Closing Checkout without paying is recorded too. The order settles as
+`cancelled` rather than sitting at `payment_pending` forever, and it can never
+later be moved to `paid`.
+
+![An order cancelled because checkout was closed](docs/screenshots/08-cancelled.png)
+
+### 9. The audit trail
+
+`GET /api/audit/:orderId` reconstructs the entire decision chain for one order,
+from the customer's first message to the verified payment. Written server-side
+only — nothing the customer or the model sends can forge a row.
+
+![The audit trail for a single order as JSON](docs/screenshots/09-audit-trail.png)
+
+---
+
+## Track 01 — meeting the bar
+
+The bar for this track is that every money action is **explainable, bounded and
+gated**, with an **audit trail** and **one failure handled gracefully**. Each of
+those maps to code rather than to a claim:
+
+| The bar | Where it lives | What it does |
+| --- | --- | --- |
+| **Explainable** | `services/catalogService.js`, `routes/auditRoutes.js` | Every price traces to the server catalog. `GET /api/audit/:orderId` reconstructs the whole decision chain for a single order. |
+| **Bounded** | `config/limits.js` | A per-item quantity cap and a per-order value ceiling, set by the operator in the environment. The agent cannot raise them. Enforced at proposal time *and* again at confirm, so bypassing the UI does not bypass the bound. |
+| **Gated** | `routes/orderRoutes.js`, `routes/paymentRoutes.js` | The customer must confirm before an order exists, and only a verified HMAC-SHA256 signature can write `paid`. `/api/payments/abandon` is structurally incapable of reaching `paid`. |
+| **Audit trail** | `models/AuditEvent.js`, `services/auditService.js` | Nine event types, written server-side only. Audit failures are swallowed so they can never break a customer's payment. |
+| **Failure handled** | throughout | Five, not one: out of stock, over the per-item cap, over the value ceiling, payment cancelled, payment failed. Each is refused distinctly and recorded distinctly. |
+
+Every one of those was verified by reading the database, not by trusting a
+success message in the UI. The evidence is in [BUILD_NOTES.md](BUILD_NOTES.md), and the failures met
+along the way — including the diagnoses that turned out to be wrong — are in
+[ERRORS.md](ERRORS.md).
+
+---
+
 ## The safety model
 
 The agent proposes. The customer confirms. The server validates. Razorpay
@@ -181,15 +280,26 @@ npm run dev
 
 Open http://localhost:5173.
 
+No frontend `.env` is needed locally — the API base falls back to
+`http://localhost:5000`. When the frontend is deployed separately from the API,
+set `VITE_API_URL` to the backend's public URL. Note that Vite inlines every
+`VITE_` variable into the browser bundle, so no secret may go there.
+
 ### 3. Try it
 
-Type `I need 2 Paracetamol and 1 Vicks Vaporub`, click **Confirm Order**, and
+Type `I need 2 Paracetamol and 1 Vicks Vaporub`, click **Confirm order**, and
 pay with a Razorpay test method. Netbanking with the **Success** simulator is the
 most reliable in Test Mode. If your Razorpay account has international cards
 disabled, the common `4111 1111 1111 1111` test card will be rejected — use a
 domestic test card such as `5267 3181 8797 5449`.
 
-To see the failure path, order `999 Crocin` — more than the catalog holds.
+Three refusals worth seeing, each handled differently:
+
+| Type this | What happens |
+| --- | --- |
+| `1 Digital Thermometer` | Out of stock — refused by the catalog |
+| `15 Bandages` | Above the per-item cap — refused by the agent's own bound |
+| `10 Vitamin C Tablets` | ₹1200, above the ₹1000 ceiling — proposal shown, confirm disabled |
 
 ---
 
