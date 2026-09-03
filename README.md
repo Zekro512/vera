@@ -22,6 +22,7 @@ LLM's word for anything:
 | --- | --- |
 | Product prices | Read from the server-side catalog, never from the LLM or the browser |
 | Stock | Checked against the catalog at proposal time and re-checked at confirm time |
+| Order size | A per-item quantity cap and a per-order value ceiling, set by the operator in the environment. The agent cannot raise them, and exceeding one is a refusal rather than a warning |
 | Order total | Recomputed server-side from catalog prices on every confirm |
 | Payment amount | Razorpay order is created from the stored total, never from a client-supplied figure |
 | Payment success | Only a verified HMAC signature can mark an order `paid` |
@@ -114,6 +115,7 @@ written server-side only; nothing the customer or the LLM sends can forge one.
 | `ORDER_REQUEST_RECEIVED` | A customer message arrives at `/api/chat` |
 | `ORDER_PROPOSED` | The catalog validated at least one item |
 | `STOCK_UNAVAILABLE` | An item was rejected for stock or not being in the catalog |
+| `ORDER_LIMIT_EXCEEDED` | An order was refused for breaching the value ceiling |
 | `CUSTOMER_CONFIRMED` | The customer confirmed and an order was created |
 | `PAYMENT_CREATED` | A Razorpay order was created |
 | `PAYMENT_SUCCESS` | A signature was verified and the order became `paid` |

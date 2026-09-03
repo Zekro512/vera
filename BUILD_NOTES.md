@@ -14,6 +14,12 @@ no stock — and nothing downstream would read those fields if it did.
 rejects unknown items, invalid quantities, and quantities above stock, and prices
 everything from the server-side catalog.
 
+**Bounded order size.** A per-item quantity cap and a per-order value ceiling,
+both read from the environment so the operator sets them and the agent cannot.
+Enforced in `catalogService` at proposal time and again in `/api/orders`, so a
+client that skips the chat step entirely is still bounded. A breach is refused
+with `ORDER_LIMIT_EXCEEDED` in the audit trail, not merely flagged.
+
 **Server-side pricing.** `/api/orders` ignores prices and totals sent by the
 browser. It re-validates the requested items and recomputes the total. Verified by
 posting an order with a forged `total: 1`, which was saved as ₹40.
@@ -51,6 +57,8 @@ button that locks on click.
 | Client-supplied price | Ignored, repriced from catalog | curl with `total: 1` |
 | Duplicate confirm | One order reused | Two sequential POSTs |
 | Out-of-stock item | Rejected, `STOCK_UNAVAILABLE` | curl and UI |
+| Order above the value ceiling | HTTP 400, `ORDER_LIMIT_EXCEEDED` | curl and UI |
+| Quantity above the per-item cap | Rejected at validation | curl and unit check |
 | Changing a settled order | HTTP 409 | curl |
 
 Every result above was confirmed by reading the database, not by trusting a

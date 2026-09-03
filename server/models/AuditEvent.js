@@ -10,6 +10,7 @@ const auditEventSchema = new mongoose.Schema(
         "ORDER_REQUEST_RECEIVED",
         "ORDER_PROPOSED",
         "STOCK_UNAVAILABLE",
+        "ORDER_LIMIT_EXCEEDED",
         "CUSTOMER_CONFIRMED",
         "PAYMENT_CREATED",
         "PAYMENT_SUCCESS",

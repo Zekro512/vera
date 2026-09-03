@@ -1,6 +1,6 @@
 const express = require("express");
 const Order = require("../models/Order");
-const { validateOrder } = require("../services/catalogService");
+const { validateOrder, checkOrderValue } = require("../services/catalogService");
 const { recordEvent } = require("../services/auditService");
 
 const router = express.Router();
@@ -27,15 +27,35 @@ router.post("/", async (req, res) => {
     );
 
     if (unavailableItems.length > 0) {
-      await recordEvent("STOCK_UNAVAILABLE", null, { unavailableItems });
+      const isLimitBreach = unavailableItems.some((i) => i.kind === "limit");
+
+      await recordEvent(
+        isLimitBreach ? "ORDER_LIMIT_EXCEEDED" : "STOCK_UNAVAILABLE",
+        null,
+        { unavailableItems }
+      );
 
       return res.status(400).json({
-        message: "Some items are no longer available",
+        message: isLimitBreach
+          ? "Some items are outside the agent's ordering limits"
+          : "Some items are no longer available",
         unavailableItems,
       });
     }
 
-    const total = validatedItems.reduce((sum, item) => sum + item.subtotal, 0);
+    // The ceiling is enforced here, not only at proposal time. A client that
+    // skips the chat step and posts straight to this route is still bounded.
+    const { total, exceeded, limit } = checkOrderValue(validatedItems);
+
+    if (exceeded) {
+      await recordEvent("ORDER_LIMIT_EXCEEDED", null, { total, limit });
+
+      return res.status(400).json({
+        message: `Order total of ₹${total} is above the ₹${limit} limit for a single order`,
+        total,
+        limit,
+      });
+    }
 
     // Guard against the double-POST that a fast double-click produces. If an
     // identical cart is already awaiting payment, hand back that order instead

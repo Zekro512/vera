@@ -1,7 +1,8 @@
 const express = require("express");
 
 const { extractOrder } = require("../services/llmService");
-const { validateOrder } = require("../services/catalogService");
+const { validateOrder, checkOrderValue } = require("../services/catalogService");
+const { MAX_ITEM_QUANTITY } = require("../config/limits");
 const { recordEvent } = require("../services/auditService");
 
 const router = express.Router();
@@ -30,18 +31,33 @@ router.post("/", async (req, res) => {
       extractedOrder.items
     );
 
-    // Step 4: Calculate total using backend catalog prices
-    const total = validatedItems.reduce(
-      (sum, item) => sum + item.subtotal,
-      0
-    );
+    // Step 4: Total from backend catalog prices, checked against the ceiling
+    const { total, exceeded, limit } = checkOrderValue(validatedItems);
 
     if (validatedItems.length > 0) {
       await recordEvent("ORDER_PROPOSED", null, { validatedItems, total });
     }
 
-    if (unavailableItems.length > 0) {
-      await recordEvent("STOCK_UNAVAILABLE", null, { unavailableItems });
+    // A bound breach and a stock shortfall are different refusals, so they are
+    // recorded as different events rather than lumped together.
+    const stockRejections = unavailableItems.filter((i) => i.kind !== "limit");
+    const limitRejections = unavailableItems.filter((i) => i.kind === "limit");
+
+    if (stockRejections.length > 0) {
+      await recordEvent("STOCK_UNAVAILABLE", null, {
+        unavailableItems: stockRejections,
+      });
+    }
+
+    if (limitRejections.length > 0) {
+      await recordEvent("ORDER_LIMIT_EXCEEDED", null, {
+        rejectedItems: limitRejections,
+        maxItemQuantity: MAX_ITEM_QUANTITY,
+      });
+    }
+
+    if (exceeded) {
+      await recordEvent("ORDER_LIMIT_EXCEEDED", null, { total, limit });
     }
 
     // Step 5: Return the order proposal
@@ -50,6 +66,10 @@ router.post("/", async (req, res) => {
       validatedItems,
       unavailableItems,
       total,
+      limit: {
+        maxOrderValue: limit,
+        exceeded,
+      },
     });
   } catch (error) {
     console.error("Chat error:", error.message);
