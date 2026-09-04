@@ -39,7 +39,7 @@ order. Re-verifying an already-paid order is a no-op.
 failed payment. It can only move an order out of `payment_pending`, and returns
 409 on an order that has already settled.
 
-**Audit trail.** Eight event types across the whole lifecycle, written
+**Audit trail.** Nine event types across the whole lifecycle, written
 server-side only, in a dedicated collection. Audit failures are swallowed so they
 can never break a customer's payment.
 

@@ -367,6 +367,11 @@ Three refusals worth seeing, each handled differently:
 | `POST` | `/api/payments` | Create a Razorpay order from the stored total |
 | `POST` | `/api/payments/verify` | Verify the signature; the only route that can write `paid` |
 | `POST` | `/api/payments/abandon` | Record a cancelled or failed payment |
+| `GET` | `/api/audit/:orderId` | An order with its full event timeline |
+| `GET` | `/api/audit` | The 50 most recent audit events |
+
+The two audit routes are read-only. They exist so the trail can be inspected in
+a browser without opening a database client.
 
 ---
 
@@ -419,18 +424,40 @@ than a database collection.
 ## Repository layout
 
 ```
+README.md                  this file
+BUILD_NOTES.md             what was built, simplified, and cut
+ERRORS.md                  the failures met along the way
+docs/screenshots/          images used in the walkthrough above
+
 client/
   src/App.jsx              chat UI, order proposal, Checkout integration
+  src/App.css              styling
+  .env.example             VITE_API_URL, only needed when deployed
+
 server/
   index.js                 Express app, CORS, MongoDB connection
+  .env.example             every variable the server reads, with defaults noted
+  config/limits.js         the spending bounds the agent cannot raise
   data/catalog.js          the trusted product catalog
   models/Order.js          order schema and status enum
   models/AuditEvent.js     audit trail schema
   routes/chatRoutes.js     LLM extraction + catalog validation
   routes/orderRoutes.js    confirm, re-validate, re-price, duplicate guard
   routes/paymentRoutes.js  Razorpay order, signature verification, abandonment
-  services/llmService.js   Gemini prompt and call
-  services/catalogService.js  product lookup, stock and quantity validation
+  routes/auditRoutes.js    read-only audit trail endpoints
+  services/llmService.js   Gemini prompt, timeout and retry
+  services/catalogService.js  product lookup, stock, quantity and value bounds
   services/auditService.js    audit event writer
+  scripts/demo-reset.js    clears orders and audit events for a clean demo
   scripts/dev-only/        scratch scripts, not part of the application
 ```
+
+### Useful commands
+
+| Command | What it does |
+| --- | --- |
+| `npm start` | Run the API (from `server/`) |
+| `npm run dev` | Run the frontend (from `client/`) |
+| `npm run demo:reset` | Clear all orders and audit events, then print catalog stock |
+| `node scripts/dev-only/llm-test.js` | Check the Gemini key works |
+| `node scripts/dev-only/catalog-test.js` | Check catalog validation without the model |

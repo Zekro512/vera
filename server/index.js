@@ -17,7 +17,7 @@ const app = express();
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use("/api/chat", chatRoutes); //these two change the 1 line and this will give  POST http://localhost:5000/api/chat
+app.use("/api/chat", chatRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/audit", auditRoutes);
@@ -28,8 +28,6 @@ app.get("/", (req, res) => {
 });
 
 // MongoDB connection
-//console.log("MongoDB URI loaded:", process.env.MONGODB_URI);
-
 mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => {
