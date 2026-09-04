@@ -252,7 +252,62 @@ catches and logs its own errors rather than throwing.
 - Node.js 18+
 - A MongoDB Atlas cluster
 - Razorpay **Test Mode** API keys
-- A Google Gemini API key
+- A Google Gemini API key — free, no billing needed. See step 0 below
+
+### 0. Getting the AI model running
+
+Vera uses Google Gemini for one narrow job: turning a sentence into product
+names and quantities. It never sees prices or stock, and nothing downstream
+would read them if it did.
+
+**Get a key.** Go to [aistudio.google.com/apikey](https://aistudio.google.com/apikey),
+sign in with a Google account, and choose **Create API key**. If you are asked
+where to create it, **create it in a new project** — the free tier is metered
+per project, so a new project starts with a clean allowance.
+
+Put it in `server/.env` as `GEMINI_API_KEY`. No billing account is required.
+
+**What to expect from the free tier.** The allowance is small, and hitting it is
+the most likely reason this app appears broken on a first run:
+
+| | |
+| --- | --- |
+| Requests per day | **20**, per project, per model |
+| Typical latency | 4–12 seconds |
+| Cost of one order | 1 request — only pressing **Send** calls the model |
+
+Confirming an order, paying, viewing the audit trail and every refusal path
+cost **zero** model calls. Only the chat message does. So twenty requests is
+about twenty orders, not twenty clicks.
+
+**Check the key before you start.** From `server/`:
+
+```bash
+node scripts/dev-only/llm-test.js
+```
+
+A JSON object of items and quantities means everything is wired correctly.
+
+**If the model is unavailable,** the app does not hang or crash. It waits 20
+seconds, retries once, and then tells the customer the model is busy. You will
+see one of these in the server log:
+
+| Log line | Meaning | What to do |
+| --- | --- | --- |
+| `429 RESOURCE_EXHAUSTED` | The 20/day allowance is spent | Wait for the daily reset, or use a key from a new project |
+| `503 UNAVAILABLE` | Google-side capacity, nothing to do with your setup | Wait a minute and retry |
+| `Gemini timed out after 20000ms` | The request stalled | Retry; the app has already retried once |
+
+**No key, or a dead key?** Everything except the chat step still works. The
+order, payment, verification, bounds and audit routes are all independent of the
+model — you can exercise the whole money path directly:
+
+```bash
+curl -X POST http://localhost:5000/api/orders -H "Content-Type: application/json" -d '{"validatedItems":[{"name":"Paracetamol","quantity":2}]}'
+```
+
+That returns a priced, bounded, server-validated order without the model being
+involved at all — which is the point of the architecture.
 
 ### 1. Backend
 
