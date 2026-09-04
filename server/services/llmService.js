@@ -42,7 +42,7 @@ Customer message:
 // until the socket died — the customer just watches "thinking" forever. These
 // outages are usually seconds long, so one retry turns most of them into a
 // slow response rather than a failed order.
-const REQUEST_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS) || 12000;
+const REQUEST_TIMEOUT_MS = Number(process.env.LLM_TIMEOUT_MS) || 20000;
 const RETRY_DELAY_MS = 1500;
 
 function isWorthRetrying(error) {
