@@ -126,7 +126,7 @@ the browser does.
 
 ---
 
-## If asked "what would you do next?"
+## If asked "what would I do next?"
 
 1. Atomic stock decrement in a transaction on verified payment.
 2. Razorpay webhooks, so payment state does not depend on the browser.
