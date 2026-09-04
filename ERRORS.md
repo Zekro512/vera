@@ -1,4 +1,4 @@
-# What broke, and what it taught us
+# What broke, and what it taught me
 
 A build log of the real failures behind Vera, written during the Razorpay
 Buildathon between 2 and 4 September 2026.
