@@ -222,7 +222,7 @@ first version refused correctly and stranded the customer.
 
 ---
 
-## What we would do differently
+## What I would do differently
 
 - **Restart before diagnosing.** Two separate investigations were of code that
   was not running.
