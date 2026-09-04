@@ -61,13 +61,13 @@ error paths for you.
 
 ## 3. Gemini failed three different ways in one day
 
-The largest single source of lost time, and none of it was in our code.
+The largest single source of lost time, and none of it was in my code.
 
 **`429 RESOURCE_EXHAUSTED`** — the free tier allows 20 requests per day, per
 project, per model. Exhausted by testing before it was known to be a limit.
 
 **`503 UNAVAILABLE`** — *"This model is currently experiencing high demand."*
-Unrelated to quota, and unfixable from our side.
+Unrelated to quota, and unfixable from my side.
 
 **Silent hangs** — requests that never returned. One was left open for over four
 minutes before being abandoned.
@@ -84,13 +84,19 @@ the requests that were failing. If Mongo were unreachable, those writes would
 have failed too. The audit trail built for the judges turned out to be the best
 debugging tool in the project.
 
-**Fix.** A 12-second timeout and one retry on transient `503` / `429` /
+**Fix.** A 20-second timeout and one retry on transient `503` / `429` /
 timeout, plus a distinct customer-facing message for an overloaded model rather
-than a generic error. Worst case a customer now waits about 25 seconds instead
+than a generic error. Worst case a customer now waits about 40 seconds instead
 of forever.
 
+The ceiling started at 12 seconds, chosen when calls returned in about 6. A
+later API key was slower, with healthy calls landing near 12 — right on the
+line, where a request that would have succeeded gets cancelled and retried for
+no reason. The timeout is there to catch a request that hangs indefinitely, not
+one that is merely slow.
+
 **Lesson.** Establish whose outage it is before changing anything. Two of the
-three theories above blamed our infrastructure; all three failures were Google's.
+three theories above blamed my infrastructure; all three failures were Google's.
 
 ---
 
